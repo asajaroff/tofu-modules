@@ -82,7 +82,13 @@ variable "spot_price" {
 variable "enable_ssm" {
   type        = bool
   default     = true
-  description = "If true, enables AWS Session Manager for connecting to instances"
+  description = <<EOT
+If true, enables AWS Systems Manager (SSM) Session Manager for connecting to instances.
+This controls both:
+- Installation of the SSM agent during instance bootstrap
+- Attachment of the AmazonSSMManagedInstanceCore IAM policy to the instance role
+Set to false to skip SSM agent installation and save on bootstrap time if you only need SSH access.
+EOT
 }
 
 variable "additional_iam_policy_arns" {
@@ -174,7 +180,12 @@ variable "create_ssh_key" {
 variable "ssh_key_name" {
   type        = string
   default     = "terraform-ec2-module-key"
-  description = "Name of the SSH key pair to create (only used if create_ssh_key is true)"
+  description = <<EOT
+Name of the SSH key pair.
+- If create_ssh_key is true: Name for the new key pair to create
+- If create_ssh_key is false: Name of an existing key pair to use (must already exist in AWS)
+- Set to null or empty string to not attach any SSH key to instances
+EOT
 }
 
 variable "custom_bootstrap_script" {
