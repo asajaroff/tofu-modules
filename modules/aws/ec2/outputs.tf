@@ -60,3 +60,19 @@ output "ebs_volume_arns" {
     key => vol.arn
   }
 }
+
+output "route53_record_names" {
+  description = "Map of Route53 record FQDNs created for subdomains"
+  value = {
+    for key, record in aws_route53_record.subdomains :
+    key => record.fqdn
+  }
+}
+
+output "route53_record_ids" {
+  description = "Map of Route53 record IDs"
+  value = {
+    for key, record in aws_route53_record.subdomains :
+    key => record.id
+  }
+}

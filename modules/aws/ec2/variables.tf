@@ -280,3 +280,24 @@ Blocks all incoming IPv6 traffic on ports below 10000 (except SSH if configured)
 Set to false if you want to use IPv4-only communication or if your VPC doesn't have proper IPv6 routing.
 EOT
 }
+
+variable "route53_hosted_zone_id" {
+  type        = string
+  default     = null
+  description = <<EOT
+Route53 hosted zone ID where DNS records will be created.
+If specified along with route53_subdomains, A records will be created pointing to the instance's public IP.
+Example: "Z1234567890ABC"
+EOT
+}
+
+variable "route53_subdomains" {
+  type        = list(string)
+  default     = []
+  description = <<EOT
+List of subdomain names to create as A records in the specified Route53 hosted zone.
+Each subdomain will point to the instance's public IP address.
+Only used when route53_hosted_zone_id is specified.
+Example: ["app", "api", "www"] - these will be created as app.yourdomain.com, api.yourdomain.com, www.yourdomain.com
+EOT
+}
