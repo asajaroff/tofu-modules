@@ -3,7 +3,6 @@ resource "aws_instance" "this" {
   for_each                    = { for instance in var.instances : instance.name => instance }
   instance_type               = each.value.instance_type
   ami                         = local.selected_ami
-  key_name                    = var.create_ssh_key ? aws_key_pair.this[0].key_name : (var.ssh_key_name != "" ? var.ssh_key_name : null)
   subnet_id                   = var.subnet_id
   associate_public_ip_address = each.value.public
   ipv6_address_count          = var.enable_ipv6 ? var.ipv6_address_count : 0

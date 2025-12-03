@@ -171,23 +171,6 @@ variable "subnet_id" {
   description = "Subnet where the resources will be created"
 }
 
-variable "create_ssh_key" {
-  type        = bool
-  default     = true
-  description = "If true, creates an SSH key pair for connecting to EC2 instances"
-}
-
-variable "ssh_key_name" {
-  type        = string
-  default     = "terraform-ec2-module-key"
-  description = <<EOT
-Name of the SSH key pair.
-- If create_ssh_key is true: Name for the new key pair to create
-- If create_ssh_key is false: Name of an existing key pair to use (must already exist in AWS)
-- Set to null or empty string to not attach any SSH key to instances
-EOT
-}
-
 variable "custom_bootstrap_script" {
   type        = string
   default     = ""
