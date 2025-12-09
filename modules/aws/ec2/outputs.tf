@@ -12,12 +12,6 @@ output "instance_info" {
   }
 }
 
-output "private_key" {
-  description = "SSH private key in OpenSSH format for connecting to instances (null if create_ssh_key is false)"
-  value       = var.create_ssh_key ? tls_private_key.this[0].private_key_openssh : null
-  sensitive   = true
-}
-
 output "security_group_id" {
   description = "ID of the security group attached to the instances"
   value       = aws_security_group.instance.id
@@ -36,11 +30,6 @@ output "iam_role_arn" {
 output "iam_instance_profile_name" {
   description = "Name of the IAM instance profile attached to the instances"
   value       = aws_iam_instance_profile.this.name
-}
-
-output "ssh_key_name" {
-  description = "Name of the SSH key pair (null if create_ssh_key is false)"
-  value       = var.create_ssh_key ? aws_key_pair.this[0].key_name : null
 }
 
 output "ami_id" {
@@ -69,5 +58,21 @@ output "ebs_volume_arns" {
   value = {
     for key, vol in aws_ebs_volume.additional :
     key => vol.arn
+  }
+}
+
+output "route53_record_names" {
+  description = "Map of Route53 record FQDNs created for subdomains"
+  value = {
+    for key, record in aws_route53_record.subdomains :
+    key => record.fqdn
+  }
+}
+
+output "route53_record_ids" {
+  description = "Map of Route53 record IDs"
+  value = {
+    for key, record in aws_route53_record.subdomains :
+    key => record.id
   }
 }

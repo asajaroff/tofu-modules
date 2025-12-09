@@ -82,7 +82,13 @@ variable "spot_price" {
 variable "enable_ssm" {
   type        = bool
   default     = true
-  description = "If true, enables AWS Session Manager for connecting to instances"
+  description = <<EOT
+If true, enables AWS Systems Manager (SSM) Session Manager for connecting to instances.
+This controls both:
+- Installation of the SSM agent during instance bootstrap
+- Attachment of the AmazonSSMManagedInstanceCore IAM policy to the instance role
+Set to false to skip SSM agent installation and save on bootstrap time if you only need SSH access.
+EOT
 }
 
 variable "additional_iam_policy_arns" {
@@ -163,18 +169,6 @@ variable "vpc_id" {
 variable "subnet_id" {
   type        = string
   description = "Subnet where the resources will be created"
-}
-
-variable "create_ssh_key" {
-  type        = bool
-  default     = true
-  description = "If true, creates an SSH key pair for connecting to EC2 instances"
-}
-
-variable "ssh_key_name" {
-  type        = string
-  default     = "terraform-ec2-module-key"
-  description = "Name of the SSH key pair to create (only used if create_ssh_key is true)"
 }
 
 variable "custom_bootstrap_script" {
@@ -284,5 +278,26 @@ When enabled, allows:
 Blocks all incoming IPv6 traffic on ports below 10000 (except SSH if configured).
 
 Set to false if you want to use IPv4-only communication or if your VPC doesn't have proper IPv6 routing.
+EOT
+}
+
+variable "route53_hosted_zone_id" {
+  type        = string
+  default     = null
+  description = <<EOT
+Route53 hosted zone ID where DNS records will be created.
+If specified along with route53_subdomains, A records will be created pointing to the instance's public IP.
+Example: "Z1234567890ABC"
+EOT
+}
+
+variable "route53_subdomains" {
+  type        = list(string)
+  default     = []
+  description = <<EOT
+List of subdomain names to create as A records in the specified Route53 hosted zone.
+Each subdomain will point to the instance's public IP address.
+Only used when route53_hosted_zone_id is specified.
+Example: ["app", "api", "www"] - these will be created as app.yourdomain.com, api.yourdomain.com, www.yourdomain.com
 EOT
 }

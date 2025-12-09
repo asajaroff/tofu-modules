@@ -845,14 +845,15 @@ aws ec2 describe-images --image-ids <ami-id>
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 5.0 |
+| <a name="requirement_cloudinit"></a> [cloudinit](#requirement\_cloudinit) | ~> 2.3 |
+| <a name="requirement_tls"></a> [tls](#requirement\_tls) | ~> 4.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.66.0 |
-| <a name="provider_cloudinit"></a> [cloudinit](#provider\_cloudinit) | 2.3.5 |
-| <a name="provider_tls"></a> [tls](#provider\_tls) | 4.1.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 5.100.0 |
+| <a name="provider_cloudinit"></a> [cloudinit](#provider\_cloudinit) | 2.3.7 |
 
 ## Modules
 
@@ -868,7 +869,6 @@ No modules.
 | [aws_iam_role_policy_attachment.additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.ssm](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_instance.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance) | resource |
-| [aws_key_pair.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/key_pair) | resource |
 | [aws_security_group.instance](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_volume_attachment.additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/volume_attachment) | resource |
 | [aws_vpc_security_group_egress_rule.all_ipv4](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule) | resource |
@@ -877,7 +877,6 @@ No modules.
 | [aws_vpc_security_group_ingress_rule.high_ports_udp_ipv6](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_vpc_security_group_ingress_rule.ssh_ipv4](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
 | [aws_vpc_security_group_ingress_rule.ssh_ipv6](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) | resource |
-| [tls_private_key.this](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key) | resource |
 | [aws_ami.debian](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami) | data source |
 | [aws_ami.flatcar](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami) | data source |
 | [aws_ami.freebsd](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami) | data source |
@@ -904,7 +903,7 @@ No modules.
 | <a name="input_custom_cloud_config"></a> [custom\_cloud\_config](#input\_custom\_cloud\_config) | Path to a custom cloud-config YAML file relative to the root module (where you invoke this module).<br/>If provided, this will be used instead of the default cloud-config.<br/>Use path.root in your module invocation, e.g., "${path.root}/config/custom-cloud-config.yaml" | `string` | `""` | no |
 | <a name="input_enable_ipv6"></a> [enable\_ipv6](#input\_enable\_ipv6) | Enable IPv6 address assignment for EC2 instances.<br/>When enabled, each instance will be assigned an IPv6 address.<br/><br/>IMPORTANT: For IPv6 to work properly, your VPC must have:<br/>1. An IPv6 CIDR block assigned to the VPC<br/>2. An IPv6 CIDR block assigned to the subnet<br/>3. An Internet Gateway (IGW) or Egress-Only Internet Gateway attached<br/>4. Route table with IPv6 routes (::/0 -> IGW or Egress-Only IGW)<br/><br/>If IPv6 is enabled but routing is not properly configured, you may experience:<br/>- NAT64 synthetic addresses (64:ff9b::/96) that don't work<br/>- DNS timeouts when trying to reach external services<br/>- SSH/Git operations failing after 30-60 second timeouts<br/><br/>Recommended: Set to false unless you have confirmed IPv6 routing is working. | `bool` | `false` | no |
 | <a name="input_enable_ipv6_security_rules"></a> [enable\_ipv6\_security\_rules](#input\_enable\_ipv6\_security\_rules) | Enable IPv6 security group rules for ingress/egress traffic.<br/>When enabled, allows:<br/>- IPv6 SSH access (if allow\_ssh\_ipv6\_ips is configured)<br/>- IPv6 high ports (10000-65535) for return traffic and applications<br/>- IPv6 egress to ::/0 (all outbound traffic)<br/><br/>Blocks all incoming IPv6 traffic on ports below 10000 (except SSH if configured).<br/><br/>Set to false if you want to use IPv4-only communication or if your VPC doesn't have proper IPv6 routing. | `bool` | `false` | no |
-| <a name="input_enable_ssm"></a> [enable\_ssm](#input\_enable\_ssm) | If true, enables AWS Session Manager for connecting to instances | `bool` | `true` | no |
+| <a name="input_enable_ssm"></a> [enable\_ssm](#input\_enable\_ssm) | If true, enables AWS Systems Manager (SSM) Session Manager for connecting to instances.<br/>This controls both:<br/>- Installation of the SSM agent during instance bootstrap<br/>- Attachment of the AmazonSSMManagedInstanceCore IAM policy to the instance role<br/>Set to false to skip SSM agent installation and save on bootstrap time if you only need SSH access. | `bool` | `true` | no |
 | <a name="input_instances"></a> [instances](#input\_instances) | List of instances to create.<br/>Example:<br/>[<br/>  {<br/>    name                    = "instance1.example.com"<br/>    instance\_type           = "t3.micro"<br/>    disable\_api\_termination = false<br/>    volume\_size             = 10<br/>    public                  = true<br/>  },<br/>  {<br/>    name                    = "instance2.example.com"<br/>    instance\_type           = "t3.large"<br/>    disable\_api\_termination = false<br/>    volume\_size             = 20<br/>    public                  = false<br/>  }<br/>] | <pre>list(object({<br/>    name                    = string<br/>    instance_type           = string<br/>    disable_api_termination = bool<br/>    volume_size             = number<br/>    public                  = bool<br/>    }<br/>  ))</pre> | n/a | yes |
 | <a name="input_ipv6_address_count"></a> [ipv6\_address\_count](#input\_ipv6\_address\_count) | Number of IPv6 addresses to assign to each instance.<br/>Only used when enable\_ipv6 is true.<br/>Typical values: 1 (for a single IPv6 address per instance) | `number` | `1` | no |
 | <a name="input_name"></a> [name](#input\_name) | Name for the instance group.<br/>Used as a prefix for IAM roles, security groups, and other resources. | `string` | n/a | yes |
@@ -915,7 +914,7 @@ No modules.
 | <a name="input_root_volume_kms_key_id"></a> [root\_volume\_kms\_key\_id](#input\_root\_volume\_kms\_key\_id) | KMS key ID to use for root volume encryption.<br/>If not specified, the default AWS EBS encryption key will be used.<br/>Only applies when root\_volume\_encrypted is true. | `string` | `null` | no |
 | <a name="input_spot_enabled"></a> [spot\_enabled](#input\_spot\_enabled) | If true, the instance will be a spot-instance | `bool` | `false` | no |
 | <a name="input_spot_price"></a> [spot\_price](#input\_spot\_price) | The maximum hourly price that you're willing to pay for a Spot Instance | `number` | `0.005` | no |
-| <a name="input_ssh_key_name"></a> [ssh\_key\_name](#input\_ssh\_key\_name) | Name of the SSH key pair to create (only used if create\_ssh\_key is true) | `string` | `"terraform-ec2-module-key"` | no |
+| <a name="input_ssh_key_name"></a> [ssh\_key\_name](#input\_ssh\_key\_name) | Name of the SSH key pair.<br/>- If create\_ssh\_key is true: Name for the new key pair to create<br/>- If create\_ssh\_key is false: Name of an existing key pair to use (must already exist in AWS)<br/>- Set to null or empty string to not attach any SSH key to instances | `string` | `"terraform-ec2-module-key"` | no |
 | <a name="input_subnet_id"></a> [subnet\_id](#input\_subnet\_id) | Subnet where the resources will be created | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | n/a | `map(string)` | `{}` | no |
 | <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | VPC where the resources will be created | `string` | n/a | yes |
@@ -932,7 +931,5 @@ No modules.
 | <a name="output_iam_role_name"></a> [iam\_role\_name](#output\_iam\_role\_name) | Name of the IAM role attached to the instances |
 | <a name="output_instance_arns"></a> [instance\_arns](#output\_instance\_arns) | Map of instance ARNs |
 | <a name="output_instance_info"></a> [instance\_info](#output\_instance\_info) | Map of instance information including IDs, IP addresses, and instance types for all created instances |
-| <a name="output_private_key"></a> [private\_key](#output\_private\_key) | SSH private key in OpenSSH format for connecting to instances (null if create\_ssh\_key is false) |
 | <a name="output_security_group_id"></a> [security\_group\_id](#output\_security\_group\_id) | ID of the security group attached to the instances |
-| <a name="output_ssh_key_name"></a> [ssh\_key\_name](#output\_ssh\_key\_name) | Name of the SSH key pair (null if create\_ssh\_key is false) |
 <!-- END_TF_DOCS -->

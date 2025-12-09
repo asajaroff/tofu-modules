@@ -2,10 +2,13 @@ data "cloudinit_config" "debian" {
   gzip          = false
   base64_encode = false
 
-  part {
-    filename     = "bootstrap-debian.sh"
-    content_type = "text/x-shellscript"
-    content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-debian.sh")
+  dynamic "part" {
+    for_each = var.enable_ssm ? [1] : []
+    content {
+      filename     = "bootstrap-debian.sh"
+      content_type = "text/x-shellscript"
+      content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-debian.sh")
+    }
   }
 
   dynamic "part" {
@@ -30,10 +33,13 @@ data "cloudinit_config" "ubuntu" {
   gzip          = false
   base64_encode = false
 
-  part {
-    filename     = "bootstrap-ubuntu.sh"
-    content_type = "text/x-shellscript"
-    content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-ubuntu.sh")
+  dynamic "part" {
+    for_each = var.enable_ssm ? [1] : []
+    content {
+      filename     = "bootstrap-ubuntu.sh"
+      content_type = "text/x-shellscript"
+      content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-ubuntu.sh")
+    }
   }
 
   dynamic "part" {
@@ -58,10 +64,13 @@ data "cloudinit_config" "freebsd" {
   gzip          = false
   base64_encode = false
 
-  part {
-    filename     = "bootstrap-freebsd.sh"
-    content_type = "text/x-shellscript"
-    content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-freebsd.sh")
+  dynamic "part" {
+    for_each = var.enable_ssm ? [1] : []
+    content {
+      filename     = "bootstrap-freebsd.sh"
+      content_type = "text/x-shellscript"
+      content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-freebsd.sh")
+    }
   }
 
   dynamic "part" {
@@ -86,10 +95,13 @@ data "cloudinit_config" "flatcar" {
   gzip          = false
   base64_encode = false
 
-  part {
-    filename     = "bootstrap-flatcar.sh"
-    content_type = "text/x-shellscript"
-    content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-flatcar.sh")
+  dynamic "part" {
+    for_each = var.enable_ssm ? [1] : []
+    content {
+      filename     = "bootstrap-flatcar.sh"
+      content_type = "text/x-shellscript"
+      content      = var.custom_bootstrap_script != "" ? file(var.custom_bootstrap_script) : file("${path.module}/config/bootstrap-flatcar.sh")
+    }
   }
 
   dynamic "part" {
