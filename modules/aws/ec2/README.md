@@ -846,7 +846,6 @@ aws ec2 describe-images --image-ids <ami-id>
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 5.0 |
 | <a name="requirement_cloudinit"></a> [cloudinit](#requirement\_cloudinit) | ~> 2.3 |
-| <a name="requirement_tls"></a> [tls](#requirement\_tls) | ~> 4.0 |
 
 ## Providers
 
@@ -869,6 +868,7 @@ No modules.
 | [aws_iam_role_policy_attachment.additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.ssm](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_instance.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance) | resource |
+| [aws_route53_record.subdomains](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_security_group.instance](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_volume_attachment.additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/volume_attachment) | resource |
 | [aws_vpc_security_group_egress_rule.all_ipv4](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule) | resource |
@@ -897,7 +897,6 @@ No modules.
 | <a name="input_additional_security_group_ids"></a> [additional\_security\_group\_ids](#input\_additional\_security\_group\_ids) | List of additional security group IDs to attach to the instances.<br/>This allows attaching custom security groups (e.g., for HTTP, HTTPS, or application-specific rules)<br/>alongside the module's default SSH security group.<br/>Example: ["sg-12345678", "sg-87654321"] | `list(string)` | `[]` | no |
 | <a name="input_allow_ssh_ips"></a> [allow\_ssh\_ips](#input\_allow\_ssh\_ips) | List IP address that will be allowed to SSH into the box.<br/>Format is "123.123.123.123/32" | `list(string)` | <pre>[<br/>  "192.168.1.1/32"<br/>]</pre> | no |
 | <a name="input_allow_ssh_ipv6_ips"></a> [allow\_ssh\_ipv6\_ips](#input\_allow\_ssh\_ipv6\_ips) | List of IPv6 addresses that will be allowed to SSH into the box.<br/>Format is "2001:db8::1/128" for single addresses or "2001:db8::/64" for ranges.<br/>If empty, no IPv6 SSH access will be allowed. | `list(string)` | `[]` | no |
-| <a name="input_create_ssh_key"></a> [create\_ssh\_key](#input\_create\_ssh\_key) | If true, creates an SSH key pair for connecting to EC2 instances | `bool` | `true` | no |
 | <a name="input_custom_ami_id"></a> [custom\_ami\_id](#input\_custom\_ami\_id) | Custom AMI ID to use for the instances instead of automatic OS family selection.<br/>When specified, this overrides the os\_family automatic AMI selection.<br/>Useful for using golden images, hardened AMIs, or specific AMI versions.<br/>Example: "ami-0123456789abcdef0" | `string` | `null` | no |
 | <a name="input_custom_bootstrap_script"></a> [custom\_bootstrap\_script](#input\_custom\_bootstrap\_script) | Path to a custom bootstrap script relative to the root module (where you invoke this module).<br/>If provided, this will be used instead of the default bootstrap script.<br/>Use path.root in your module invocation, e.g., "${path.root}/scripts/custom-bootstrap.sh" | `string` | `""` | no |
 | <a name="input_custom_cloud_config"></a> [custom\_cloud\_config](#input\_custom\_cloud\_config) | Path to a custom cloud-config YAML file relative to the root module (where you invoke this module).<br/>If provided, this will be used instead of the default cloud-config.<br/>Use path.root in your module invocation, e.g., "${path.root}/config/custom-cloud-config.yaml" | `string` | `""` | no |
@@ -912,9 +911,11 @@ No modules.
 | <a name="input_region"></a> [region](#input\_region) | Region where the AWS provider will be configured and deployed | `string` | `"us-east-1"` | no |
 | <a name="input_root_volume_encrypted"></a> [root\_volume\_encrypted](#input\_root\_volume\_encrypted) | If true, the root EBS volume will be encrypted | `bool` | `true` | no |
 | <a name="input_root_volume_kms_key_id"></a> [root\_volume\_kms\_key\_id](#input\_root\_volume\_kms\_key\_id) | KMS key ID to use for root volume encryption.<br/>If not specified, the default AWS EBS encryption key will be used.<br/>Only applies when root\_volume\_encrypted is true. | `string` | `null` | no |
+| <a name="input_route53_hosted_zone_id"></a> [route53\_hosted\_zone\_id](#input\_route53\_hosted\_zone\_id) | Route53 hosted zone ID where DNS records will be created.<br/>If specified along with route53\_subdomains, A records will be created pointing to the instance's public IP.<br/>Example: "Z1234567890ABC" | `string` | `null` | no |
+| <a name="input_route53_subdomains"></a> [route53\_subdomains](#input\_route53\_subdomains) | List of subdomain names to create as A records in the specified Route53 hosted zone.<br/>Each subdomain will point to the instance's public IP address.<br/>Only used when route53\_hosted\_zone\_id is specified.<br/>Example: ["app", "api", "www"] - these will be created as app.yourdomain.com, api.yourdomain.com, www.yourdomain.com | `list(string)` | `[]` | no |
 | <a name="input_spot_enabled"></a> [spot\_enabled](#input\_spot\_enabled) | If true, the instance will be a spot-instance | `bool` | `false` | no |
 | <a name="input_spot_price"></a> [spot\_price](#input\_spot\_price) | The maximum hourly price that you're willing to pay for a Spot Instance | `number` | `0.005` | no |
-| <a name="input_ssh_key_name"></a> [ssh\_key\_name](#input\_ssh\_key\_name) | Name of the SSH key pair.<br/>- If create\_ssh\_key is true: Name for the new key pair to create<br/>- If create\_ssh\_key is false: Name of an existing key pair to use (must already exist in AWS)<br/>- Set to null or empty string to not attach any SSH key to instances | `string` | `"terraform-ec2-module-key"` | no |
+| <a name="input_ssh_key_name"></a> [ssh\_key\_name](#input\_ssh\_key\_name) | Name of an existing AWS SSH key pair to associate with the instances.<br/>If null, no key pair is attached and SSH access must use SSM or other means.<br/>Example: "my-existing-keypair" | `string` | `null` | no |
 | <a name="input_subnet_id"></a> [subnet\_id](#input\_subnet\_id) | Subnet where the resources will be created | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | n/a | `map(string)` | `{}` | no |
 | <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | VPC where the resources will be created | `string` | n/a | yes |
@@ -931,5 +932,7 @@ No modules.
 | <a name="output_iam_role_name"></a> [iam\_role\_name](#output\_iam\_role\_name) | Name of the IAM role attached to the instances |
 | <a name="output_instance_arns"></a> [instance\_arns](#output\_instance\_arns) | Map of instance ARNs |
 | <a name="output_instance_info"></a> [instance\_info](#output\_instance\_info) | Map of instance information including IDs, IP addresses, and instance types for all created instances |
+| <a name="output_route53_record_ids"></a> [route53\_record\_ids](#output\_route53\_record\_ids) | Map of Route53 record IDs |
+| <a name="output_route53_record_names"></a> [route53\_record\_names](#output\_route53\_record\_names) | Map of Route53 record FQDNs created for subdomains |
 | <a name="output_security_group_id"></a> [security\_group\_id](#output\_security\_group\_id) | ID of the security group attached to the instances |
 <!-- END_TF_DOCS -->

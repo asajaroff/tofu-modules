@@ -1,17 +1,15 @@
 locals {
-  # Map of OS family to AMI ID
-  ami_map = {
-    debian  = data.aws_ami.debian.id
-    ubuntu  = data.aws_ami.ubuntu.id
-    freebsd = data.aws_ami.freebsd.id
-    flatcar = data.aws_ami.flatcar.id
-  }
-
-  # Use custom AMI if provided, otherwise use automatic selection based on os_family
-  selected_ami = var.custom_ami_id != null ? var.custom_ami_id : local.ami_map[var.os_family]
+  # Use custom AMI if provided, otherwise look up the AMI for the selected os_family
+  selected_ami = var.custom_ami_id != null ? var.custom_ami_id : one(
+    var.os_family == "debian" ? data.aws_ami.debian[*].id :
+    var.os_family == "ubuntu" ? data.aws_ami.ubuntu[*].id :
+    var.os_family == "freebsd" ? data.aws_ami.freebsd[*].id :
+    data.aws_ami.flatcar[*].id
+  )
 }
 
 data "aws_ami" "ubuntu" {
+  count       = var.custom_ami_id == null && var.os_family == "ubuntu" ? 1 : 0
   most_recent = true
   filter {
     name   = "name"
@@ -25,6 +23,7 @@ data "aws_ami" "ubuntu" {
 }
 
 data "aws_ami" "debian" {
+  count       = var.custom_ami_id == null && var.os_family == "debian" ? 1 : 0
   most_recent = true
   filter {
     name   = "name"
@@ -37,7 +36,9 @@ data "aws_ami" "debian" {
   owners = ["136693071363"] # https://wiki.debian.org/Cloud/AmazonEC2Image/
 }
 
-data "aws_ami" "freebsd" { # https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-west-1#Images:visibility=public-images;imageName=:FreeBSD%2014.1-STABLE-;v=3;$case=tags:false%5C,client:false;$regex=tags:false%5C,client:false
+# https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-west-1#Images:visibility=public-images;imageName=:FreeBSD%2014.1-STABLE-;v=3;$case=tags:false%5C,client:false;$regex=tags:false%5C,client:false
+data "aws_ami" "freebsd" {
+  count       = var.custom_ami_id == null && var.os_family == "freebsd" ? 1 : 0
   most_recent = true
   filter {
     name   = "name"
@@ -50,7 +51,9 @@ data "aws_ami" "freebsd" { # https://eu-west-1.console.aws.amazon.com/ec2/home?r
   owners = ["782442783595"] # https://wiki.debian.org/Cloud/AmazonEC2Image/
 }
 
-data "aws_ami" "flatcar" { # https://www.flatcar.org/docs/latest/installing/cloud/aws-ec2/
+# https://www.flatcar.org/docs/latest/installing/cloud/aws-ec2/
+data "aws_ami" "flatcar" {
+  count       = var.custom_ami_id == null && var.os_family == "flatcar" ? 1 : 0
   most_recent = true
   filter {
     name   = "name"

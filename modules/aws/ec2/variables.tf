@@ -109,6 +109,11 @@ Processor architecture, possible options:
 - amd64
 - arm64
 EOT
+
+  validation {
+    condition     = contains(["amd64", "arm64"], var.os_arch)
+    error_message = "os_arch must be one of: amd64, arm64"
+  }
 }
 
 variable "os_family" {
@@ -121,6 +126,11 @@ variable "os_family" {
   - freebsd
   - flatcar
 EOT
+
+  validation {
+    condition     = contains(["debian", "ubuntu", "freebsd", "flatcar"], var.os_family)
+    error_message = "os_family must be one of: debian, ubuntu, freebsd, flatcar"
+  }
 }
 
 variable "custom_ami_id" {
@@ -169,6 +179,16 @@ variable "vpc_id" {
 variable "subnet_id" {
   type        = string
   description = "Subnet where the resources will be created"
+}
+
+variable "ssh_key_name" {
+  type        = string
+  default     = null
+  description = <<EOT
+Name of an existing AWS SSH key pair to associate with the instances.
+If null, no key pair is attached and SSH access must use SSM or other means.
+Example: "my-existing-keypair"
+EOT
 }
 
 variable "custom_bootstrap_script" {
