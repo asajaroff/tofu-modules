@@ -1,0 +1,14 @@
+#cloud-config
+package_update: true
+
+packages:
+  - curl
+  - awscli
+
+# Fully static content (region/parameter-prefix cannot be baked in here — the
+# ec2 module this feeds only supports a plain file() read, so anything
+# per-cluster is discovered at boot instead: region via IMDS, the SSM
+# parameter path prefix via this instance's own "k3s-parameter-path-prefix"
+# tag (read back via ec2:DescribeTags), then the join token via SSM.
+runcmd:
+  - IMDS_TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"); IID=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/instance-id); REGION=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/placement/region); PREFIX=$(aws ec2 describe-tags --region "$REGION" --filters "Name=resource-id,Values=$IID" "Name=key,Values=k3s-parameter-path-prefix" --query 'Tags[0].Value' --output text); NODE_TOKEN=""; for i in $(seq 1 30); do NODE_TOKEN=$(aws ssm get-parameter --region "$REGION" --name "${PREFIX}/node-token" --with-decryption --query Parameter.Value --output text 2>/dev/null); [ -n "$NODE_TOKEN" ] && [ "$NODE_TOKEN" != "None" ] && break; sleep 5; done; curl -sfL https://get.k3s.io | INSTALL_K3S_CHANNEL=stable sh -s - server --cluster-init --token "$NODE_TOKEN" --write-kubeconfig-mode 644
