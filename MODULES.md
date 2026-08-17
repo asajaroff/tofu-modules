@@ -15,7 +15,8 @@ Complete catalog of all OpenTofu/Terraform modules in this repository.
 
 #### EC2 - Elastic Compute Cloud
 **Status:** ✅ Production Ready
-**Version:** v1.1.0
+**Version:** v2.0.0
+**Compatibility:** OpenTofu only as of v2.0.0 — uses the `enabled` meta-argument, which doesn't exist in Terraform's grammar at all and fails to parse there
 **Path:** `modules/aws/ec2`
 
 Comprehensive EC2 instance management with support for:
@@ -24,14 +25,15 @@ Comprehensive EC2 instance management with support for:
 - IAM role integration
 - Security group configuration
 - User data and cloud-init
-- SSH key management
 - Tags and metadata
 - Spot instances
+
+No built-in SSH key management — use SSM (`enable_ssm`) or embed a key via `custom_cloud_config`.
 
 **Usage:**
 ```hcl
 module "ec2" {
-  source = "git::https://github.com/asajaroff/tofu-modules.git//modules/aws/ec2?ref=aws/ec2/v1.1.0"
+  source = "git::https://github.com/asajaroff/tofu-modules.git//modules/aws/ec2?ref=ec2/v2.0.0"
 
   # Your configuration here
 }
@@ -58,7 +60,8 @@ Manages Elastic IP addresses for AWS resources.
 
 #### CloudFront + S3 Static Site
 **Status:** ✅ Production Ready
-**Version:** v1.0.0
+**Version:** v2.0.0
+**Compatibility:** OpenTofu only as of v2.0.0 — uses the `enabled` meta-argument, which doesn't exist in Terraform's grammar at all and fails to parse there
 **Path:** `modules/aws/cloudfront-s3-static-site`
 
 Complete solution for hosting static websites with:
@@ -72,7 +75,7 @@ Complete solution for hosting static websites with:
 **Usage:**
 ```hcl
 module "static_site" {
-  source = "git::https://github.com/asajaroff/tofu-modules.git//modules/aws/cloudfront-s3-static-site?ref=cloudfront-s3-static-site/v1.0.0"
+  source = "git::https://github.com/asajaroff/tofu-modules.git//modules/aws/cloudfront-s3-static-site?ref=cloudfront-s3-static-site/v2.0.0"
 
   domain_name = "example.com"
   # Additional configuration

@@ -1,5 +1,7 @@
 # Cloudfront + S3 static site hosting
 
+**OpenTofu only as of v2.0.0.** `aws_s3_bucket_versioning.this` uses `lifecycle { enabled = ... }`, added in OpenTofu 1.11 with no Terraform equivalent — it fails to parse there, on any Terraform version. Pin `<= v1.0.0` if you need Terraform compatibility.
+
 ## Requirements
 * A route53 Hosted Zone with the top level domain name of the site to deploy
 * Resources for certificate manager and certificate manager validation must be in `us-east-1`
@@ -20,7 +22,7 @@ S3_BUCKET_NAME=bucket_name aws s3 sync ./ s3://${S3_BUCKET_NAME}/public/
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11.0 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 5.0 |
 
 ## Providers

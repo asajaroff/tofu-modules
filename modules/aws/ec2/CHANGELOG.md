@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+- `ec2/v2.0.0`: **OpenTofu only from this version on.** `aws_iam_role_policy_attachment.ssm` and the 3 IPv6 security group rules in `security_groups.tf` now use `lifecycle { enabled = ... }` instead of `count = ... ? 1 : 0`. `enabled` was added in OpenTofu 1.11 and has no Terraform equivalent — it fails to parse there regardless of Terraform's version. `required_version` bumped to `>= 1.11.0` (documents intent; can't itself enforce OpenTofu-vs-Terraform). Pin `<= v1.2.4` if you need Terraform compatibility. State migrates automatically (OpenTofu moves `resource[0]` to `resource` on its own when the underlying condition is unchanged) — verified for real against this repo's own `alejandro.sajaroff.com` deployment's live `aws_s3_bucket_versioning` state in the sibling `cloudfront-s3-static-site` module (same mechanism): 0 to add, 0 to destroy. Could not verify the ec2-side resources the same way — every consumer with live state was torn down at the time of this change.
+- `data.tf`'s 4 AMI-selection data sources are unchanged (still `count`) — `enabled` only supports `resource`/`module` blocks, not `data` sources.
+
 ### Removed
 - Removed SSH key management entirely (`create_ssh_key`/`ssh_key_name` variables, `private_key`/`key_pair_name` outputs, `keys.tf`) — this had already happened in an untagged/unlogged commit at some point after `[1.0.1]` below; recording it now since docs and examples still referenced the removed variables/outputs until this pass fixed them. Use SSM (`enable_ssm`) or embed a key yourself via `custom_cloud_config`.
 
