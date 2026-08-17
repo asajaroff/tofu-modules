@@ -93,28 +93,24 @@ terraform destroy
 
 ### Step 4: Access Your Instance
 
-After deployment, you can access your instance via:
+The module has no built-in SSH key management — `instance_info` (keyed by AWS instance ID) is the source of truth for IDs/IPs either way.
 
-**SSH (using the generated key):**
+**AWS Session Manager (if `enable_ssm = true`, as in this example) — needs no key at all:**
 ```bash
-# Get the private key
-terraform output -raw ssh_private_key > key.pem
-chmod 600 key.pem
-
-# Get the public IP
-PUBLIC_IP=$(terraform output -json instance_public_ips | jq -r '.[0]')
-
-# SSH to the instance (user depends on OS: admin for Debian, ubuntu for Ubuntu)
-ssh -i key.pem admin@$PUBLIC_IP
-```
-
-**AWS Session Manager (if aws_ssm_enabled = true):**
-```bash
-# Get the instance ID
-INSTANCE_ID=$(terraform output -json instance_ids | jq -r '.[0]')
+# Get the instance ID (instance_info is a map keyed by instance ID)
+INSTANCE_ID=$(terraform output -json instance_info | jq -r 'keys[0]')
 
 # Connect via SSM
 aws ssm start-session --target $INSTANCE_ID
+```
+
+**SSH:**
+Only works if `cloud-config-custom.yaml` embeds a public key (see its `ssh_authorized_keys`/`users` section) — the module itself never generates or manages one.
+```bash
+PUBLIC_IP=$(terraform output -json instance_info | jq -r '.[].public_ip')
+
+# user depends on OS: admin for Debian, ubuntu for Ubuntu
+ssh admin@$PUBLIC_IP
 ```
 
 ### Step 5: Verify Cloud-Init

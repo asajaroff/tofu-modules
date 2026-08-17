@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Removed SSH key management entirely (`create_ssh_key`/`ssh_key_name` variables, `private_key`/`key_pair_name` outputs, `keys.tf`) — this had already happened in an untagged/unlogged commit at some point after `[1.0.1]` below; recording it now since docs and examples still referenced the removed variables/outputs until this pass fixed them. Use SSM (`enable_ssm`) or embed a key yourself via `custom_cloud_config`.
+
+### Fixed
+- `ec2/v1.2.1`: gated each `aws_ami` data source with `count` keyed on `os_family`, so an unselected family's AMI lookup failing/being unpublished in the current region (e.g. `freebsd` in `eu-central-1`) no longer breaks every plan
+- `ec2/v1.2.2`: removed the module's own `provider "aws" {}` block — Terraform rejects calling a module with such a block via `count`/`for_each`/`depends_on`
+- `ec2/v1.2.3`: `additional_iam_policy_arns` now indexes into the list instead of `toset()`, so attaching a policy created in the same apply (its ARN "known after apply") no longer fails
+- `spot_price` default changed from `0.005` (unrealistically low for any current instance type — a spot request capped there will never fulfill) to `null` (no cap, AWS uses the On-Demand price as the ceiling)
+- `route53_subdomains` A records now use the instance's private IP when it has no public one, instead of writing an empty/broken record
+- Resolved conflicting version-pin files (`.tofu-version` said `v1.10.6`, `.opentofu-version` said `1.10.7`) — kept `.opentofu-version` as the single source of truth, removed `.tofu-version`
+
+### Documentation
+- Rewrote `AGENTS.md` — the previous version described `instances_map`, `pool_name`, `aws_ssm_enabled`, `create_key`, and a `TODO.md` that doesn't exist
+- Deleted `CODE_NOTES.md` — described issues already fixed (hardcoded spot price, Debian-only cloud-init) as still open, and referenced the same removed variable names as `AGENTS.md`
+- Fixed `README.md` and `examples/custom-cloud-init/` to stop referencing the removed SSH key variables/outputs, fixed an `instance_info` indexing example that assumed ID-keying (it's keyed by the logical `name`), fixed `allow_ssh_ips = ["0.0.0.0/0"]` in the example to a documentation-safe placeholder, added the missing `route53_*` input/output rows and removed the dead `tls` requirement from the generated docs block
+
+## [Unreleased, pre-1.2.x] — multiple untagged/undocumented releases folded into one entry
+
+The entries below accumulated here across what was actually several real tags (`ec2/v1.1.x` through `ec2/v1.2.0`) without ever being moved to a version heading at release time, so the version boundaries for individual items are no longer reconstructable. Treat this block as a historical summary, not a precise per-version record — going forward, every tag in this file's own [Unreleased] section above gets its own line, and this section doesn't grow further.
+
 ### Added
 - Added AGENTS.md with instructions for AI assistants working with this module
 - Added CODE_NOTES.md with comprehensive code improvements, problems, and notable changes reference

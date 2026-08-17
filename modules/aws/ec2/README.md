@@ -1,6 +1,6 @@
 # EC2 Module
 
-A flexible Terraform/OpenTofu module for provisioning EC2 instances with customizable configurations including multiple OS options, spot instances, SSH key management, and IAM role integration.
+A flexible Terraform/OpenTofu module for provisioning EC2 instances with customizable configurations including multiple OS options, spot instances, and IAM role integration. The module has no built-in SSH key management — use SSM Session Manager (`enable_ssm`) or embed a public key yourself via `custom_cloud_config`'s `ssh_authorized_keys`/`users`.
 
 ## Table of Contents
 
@@ -28,7 +28,6 @@ A flexible Terraform/OpenTofu module for provisioning EC2 instances with customi
 - **Multiple OS Support**: Deploy Debian, Ubuntu, FreeBSD, or Flatcar Container Linux instances
 - **Architecture Flexibility**: Support for both amd64 and arm64 architectures
 - **Spot Instance Support**: Optional spot instance provisioning with configurable pricing
-- **Automated SSH Key Generation**: Automatically creates and manages SSH key pairs
 - **IAM Integration**: Built-in IAM role and instance profile creation
 - **AWS SSM Support**: Optional AWS Session Manager integration for secure access
 - **Cloud-init Configuration**: Automated instance initialization and software installation
@@ -70,10 +69,10 @@ terraform init
 terraform plan
 terraform apply
 
-# 4. Save SSH key and connect
-terraform output -raw private_key > key.pem
-chmod 600 key.pem
-ssh -i key.pem admin@$(terraform output -raw instance_ip)
+# 4. Connect — via SSM (no key needed):
+aws ssm start-session --target $(terraform output -json instance_info | jq -r 'keys[0]')
+# ...or via SSH, only if you embedded a public key yourself in cloud-config:
+ssh admin@$(terraform output -raw instance_ip)
 ```
 
 ## Prerequisites
@@ -318,11 +317,6 @@ resource "aws_iam_role_policy_attachment" "s3_access" {
 output "instance_details" {
   value = module.app_servers.instance_info
 }
-
-output "ssh_key" {
-  value     = module.app_servers.private_key
-  sensitive = true
-}
 ```
 
 ## Network Requirements
@@ -440,41 +434,9 @@ allow_ssh_ips = ["${chomp(data.http.myip.response_body)}/32"]
 
 ## Accessing Instances
 
-### SSH Access
+The module has no built-in SSH key management — it creates no key pair and attaches none by default. Pick one of the two methods below.
 
-If `create_ssh_key` is enabled (default), the module generates an SSH key pair. Retrieve the private key from the outputs:
-
-```bash
-terraform output -raw private_key > instance_key.pem
-chmod 600 instance_key.pem
-ssh -i instance_key.pem <username>@<instance-ip>
-```
-
-**Default SSH Usernames by OS**:
-
-| OS Family | Default Username | Notes |
-|-----------|------------------|-------|
-| `debian` | `admin` | Debian official AMI default user |
-| `ubuntu` | `ubuntu` | Ubuntu official AMI default user |
-| `freebsd` | `ec2-user` | FreeBSD official AMI default user |
-| `flatcar` | `core` | Flatcar Container Linux default user |
-
-**Example SSH commands:**
-```bash
-# Debian
-ssh -i instance_key.pem admin@<instance-ip>
-
-# Ubuntu
-ssh -i instance_key.pem ubuntu@<instance-ip>
-
-# FreeBSD
-ssh -i instance_key.pem ec2-user@<instance-ip>
-
-# Flatcar
-ssh -i instance_key.pem core@<instance-ip>
-```
-
-### AWS Session Manager
+### AWS Session Manager (recommended, no key needed)
 
 If `enable_ssm` is true (default), connect via AWS SSM without SSH keys:
 
@@ -496,6 +458,19 @@ aws ssm start-session --target <instance-id> \
 - Session recording capabilities
 
 This method doesn't require SSH keys or open ports and works with both public and private instances.
+
+### SSH Access
+
+Requires embedding a public key yourself, via `custom_cloud_config`'s `ssh_authorized_keys`/`users` section — see `examples/custom-cloud-init/cloud-config-custom.yaml` for a working example. `allow_ssh_ips` only controls which source IPs the security group permits; it doesn't provision any key.
+
+**Default usernames on the module's stock AMIs:**
+
+| OS Family | Default Username | Notes |
+|-----------|------------------|-------|
+| `debian` | `admin` | Debian official AMI default user |
+| `ubuntu` | `ubuntu` | Ubuntu official AMI default user |
+| `freebsd` | `ec2-user` | FreeBSD official AMI default user |
+| `flatcar` | `core` | Flatcar Container Linux default user |
 
 ## Cloud-Init Customization
 
@@ -539,15 +514,15 @@ The module provides the following outputs for integration with other resources:
 
 | Output | Description | Type | Usage Example |
 |--------|-------------|------|---------------|
-| `instance_info` | Map of instance details (ID, IPs, type) | `map(object)` | Get instance metadata |
-| `private_key` | SSH private key (sensitive) | `string` | Save for SSH access |
+| `instance_info` | Map of instance details (ID, IPs, type), keyed by the logical `name` you gave each instance in `instances` | `map(object)` | Get instance metadata |
 | `security_group_id` | Security group ID | `string` | Add additional rules |
 | `iam_role_name` | IAM role name | `string` | Attach additional policies |
 | `iam_role_arn` | IAM role ARN | `string` | Reference in IAM policies |
 | `iam_instance_profile_name` | Instance profile name | `string` | Use in other modules |
-| `key_pair_name` | SSH key pair name | `string` | Reference for other instances |
 | `ami_id` | Selected AMI ID | `string` | Track which AMI was used |
 | `instance_arns` | Map of instance ARNs | `map(string)` | Use in resource policies |
+| `ebs_volume_ids` / `ebs_volume_arns` | Maps of additional EBS volume IDs/ARNs (key: `instance_name-volN`) | `map(string)` | Reference attached volumes |
+| `route53_record_names` / `route53_record_ids` | Maps of created Route53 record FQDNs/IDs (only if `route53_hosted_zone_id` set) | `map(string)` | Look up DNS names |
 
 ### Usage Examples
 
@@ -556,14 +531,8 @@ The module provides the following outputs for integration with other resources:
 # View all instance details
 terraform output instance_info
 
-# Get specific instance IP
+# Get a specific instance's IP — keyed by the logical name from `instances`
 terraform output -json instance_info | jq -r '."web.example.com".public_ip'
-```
-
-**Save SSH key:**
-```bash
-terraform output -raw private_key > key.pem
-chmod 600 key.pem
 ```
 
 **Attach additional IAM policy:**
@@ -612,10 +581,10 @@ aws ec2 describe-security-groups --group-ids <sg-id>
 terraform output instance_info
 
 # 3. Check you're using correct username
-# See "Default SSH Usernames by OS" table above
+# See "Default usernames" table under Accessing Instances above
 
-# 4. Verify SSH key permissions
-ls -la instance_key.pem  # Should be -rw------- (600)
+# 4. Confirm a public key was actually embedded in cloud-config — the module
+#    doesn't manage SSH keys itself, see the SSH Access section above
 ```
 
 **Solutions:**
@@ -699,7 +668,7 @@ aws iam get-role-policy \
 ```
 
 **Solutions:**
-- Ensure `aws_ssm_enabled = true` in module call
+- Ensure `enable_ssm = true` in module call
 - Verify IAM role has SSM permissions (module creates this automatically)
 - For private instances: Add VPC endpoints for SSM (or use NAT Gateway)
 - Check instance has internet access to reach SSM service
@@ -824,7 +793,7 @@ aws ec2 describe-images --image-ids <ami-id>
 - **IAM Role**: Shared role with SSM policy (if `enable_ssm` is true)
 - **AMI Selection**: Automatic based on `os_family` and `os_arch`
 - **Cloud-init**: OS-specific bootstrap on first launch
-- **SSH Key Pair**: Auto-generated (optional, controlled by `create_ssh_key`)
+- **SSH Access**: Not module-managed — embed a key via `custom_cloud_config`, or use SSM instead
 
 ---
 
@@ -846,7 +815,6 @@ aws ec2 describe-images --image-ids <ami-id>
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 5.0 |
 | <a name="requirement_cloudinit"></a> [cloudinit](#requirement\_cloudinit) | ~> 2.3 |
-| <a name="requirement_tls"></a> [tls](#requirement\_tls) | ~> 4.0 |
 
 ## Providers
 
@@ -869,6 +837,7 @@ No modules.
 | [aws_iam_role_policy_attachment.additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_iam_role_policy_attachment.ssm](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
 | [aws_instance.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance) | resource |
+| [aws_route53_record.subdomains](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_security_group.instance](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) | resource |
 | [aws_volume_attachment.additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/volume_attachment) | resource |
 | [aws_vpc_security_group_egress_rule.all_ipv4](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule) | resource |
@@ -897,7 +866,6 @@ No modules.
 | <a name="input_additional_security_group_ids"></a> [additional\_security\_group\_ids](#input\_additional\_security\_group\_ids) | List of additional security group IDs to attach to the instances.<br/>This allows attaching custom security groups (e.g., for HTTP, HTTPS, or application-specific rules)<br/>alongside the module's default SSH security group.<br/>Example: ["sg-12345678", "sg-87654321"] | `list(string)` | `[]` | no |
 | <a name="input_allow_ssh_ips"></a> [allow\_ssh\_ips](#input\_allow\_ssh\_ips) | List IP address that will be allowed to SSH into the box.<br/>Format is "123.123.123.123/32" | `list(string)` | <pre>[<br/>  "192.168.1.1/32"<br/>]</pre> | no |
 | <a name="input_allow_ssh_ipv6_ips"></a> [allow\_ssh\_ipv6\_ips](#input\_allow\_ssh\_ipv6\_ips) | List of IPv6 addresses that will be allowed to SSH into the box.<br/>Format is "2001:db8::1/128" for single addresses or "2001:db8::/64" for ranges.<br/>If empty, no IPv6 SSH access will be allowed. | `list(string)` | `[]` | no |
-| <a name="input_create_ssh_key"></a> [create\_ssh\_key](#input\_create\_ssh\_key) | If true, creates an SSH key pair for connecting to EC2 instances | `bool` | `true` | no |
 | <a name="input_custom_ami_id"></a> [custom\_ami\_id](#input\_custom\_ami\_id) | Custom AMI ID to use for the instances instead of automatic OS family selection.<br/>When specified, this overrides the os\_family automatic AMI selection.<br/>Useful for using golden images, hardened AMIs, or specific AMI versions.<br/>Example: "ami-0123456789abcdef0" | `string` | `null` | no |
 | <a name="input_custom_bootstrap_script"></a> [custom\_bootstrap\_script](#input\_custom\_bootstrap\_script) | Path to a custom bootstrap script relative to the root module (where you invoke this module).<br/>If provided, this will be used instead of the default bootstrap script.<br/>Use path.root in your module invocation, e.g., "${path.root}/scripts/custom-bootstrap.sh" | `string` | `""` | no |
 | <a name="input_custom_cloud_config"></a> [custom\_cloud\_config](#input\_custom\_cloud\_config) | Path to a custom cloud-config YAML file relative to the root module (where you invoke this module).<br/>If provided, this will be used instead of the default cloud-config.<br/>Use path.root in your module invocation, e.g., "${path.root}/config/custom-cloud-config.yaml" | `string` | `""` | no |
@@ -910,11 +878,12 @@ No modules.
 | <a name="input_os_arch"></a> [os\_arch](#input\_os\_arch) | Processor architecture, possible options:<br/>- amd64<br/>- arm64 | `string` | `"amd64"` | no |
 | <a name="input_os_family"></a> [os\_family](#input\_os\_family) | The flavor for the EC2 instance to be deployed, possible options:<br/>  - debian<br/>  - ubuntu<br/>  - freebsd<br/>  - flatcar | `string` | `"debian"` | no |
 | <a name="input_region"></a> [region](#input\_region) | Region where the AWS provider will be configured and deployed | `string` | `"us-east-1"` | no |
+| <a name="input_route53_hosted_zone_id"></a> [route53\_hosted\_zone\_id](#input\_route53\_hosted\_zone\_id) | Route53 hosted zone ID where DNS records will be created.<br/>If specified along with route53\_subdomains, A records will be created pointing to the instance's public IP if it has one, its private IP otherwise. | `string` | `null` | no |
+| <a name="input_route53_subdomains"></a> [route53\_subdomains](#input\_route53\_subdomains) | List of subdomain names to create as A records in the specified Route53 hosted zone.<br/>Only used when route53\_hosted\_zone\_id is specified.<br/>Example: ["app", "api", "www"] | `list(string)` | `[]` | no |
 | <a name="input_root_volume_encrypted"></a> [root\_volume\_encrypted](#input\_root\_volume\_encrypted) | If true, the root EBS volume will be encrypted | `bool` | `true` | no |
 | <a name="input_root_volume_kms_key_id"></a> [root\_volume\_kms\_key\_id](#input\_root\_volume\_kms\_key\_id) | KMS key ID to use for root volume encryption.<br/>If not specified, the default AWS EBS encryption key will be used.<br/>Only applies when root\_volume\_encrypted is true. | `string` | `null` | no |
 | <a name="input_spot_enabled"></a> [spot\_enabled](#input\_spot\_enabled) | If true, the instance will be a spot-instance | `bool` | `false` | no |
-| <a name="input_spot_price"></a> [spot\_price](#input\_spot\_price) | The maximum hourly price that you're willing to pay for a Spot Instance | `number` | `0.005` | no |
-| <a name="input_ssh_key_name"></a> [ssh\_key\_name](#input\_ssh\_key\_name) | Name of the SSH key pair.<br/>- If create\_ssh\_key is true: Name for the new key pair to create<br/>- If create\_ssh\_key is false: Name of an existing key pair to use (must already exist in AWS)<br/>- Set to null or empty string to not attach any SSH key to instances | `string` | `"terraform-ec2-module-key"` | no |
+| <a name="input_spot_price"></a> [spot\_price](#input\_spot\_price) | The maximum hourly price you're willing to pay for a Spot Instance. Defaults to null (no cap — AWS uses the On-Demand price as the implicit ceiling). | `number` | `null` | no |
 | <a name="input_subnet_id"></a> [subnet\_id](#input\_subnet\_id) | Subnet where the resources will be created | `string` | n/a | yes |
 | <a name="input_tags"></a> [tags](#input\_tags) | n/a | `map(string)` | `{}` | no |
 | <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | VPC where the resources will be created | `string` | n/a | yes |

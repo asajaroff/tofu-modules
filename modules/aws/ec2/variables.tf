@@ -75,8 +75,14 @@ variable "spot_enabled" {
 
 variable "spot_price" {
   type        = number
-  default     = 0.005
-  description = "The maximum hourly price that you're willing to pay for a Spot Instance"
+  default     = null
+  description = <<EOT
+The maximum hourly price you're willing to pay for a Spot Instance.
+Defaults to null (no cap), which lets AWS use the On-Demand price as the
+implicit ceiling — the modern, recommended default. Do not rely on the old
+default of 0.005: current Spot pricing for virtually any instance type
+exceeds that, so a request capped there will simply never fulfill.
+EOT
 }
 
 variable "enable_ssm" {
