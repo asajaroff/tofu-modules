@@ -22,9 +22,12 @@ resource "aws_iam_role" "this" {
 # Attach SSM policy to role for Session Manager access
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "ssm" {
-  count      = var.enable_ssm ? 1 : 0
   role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+  lifecycle {
+    enabled = var.enable_ssm
+  }
 }
 
 # Attach additional IAM policies to role

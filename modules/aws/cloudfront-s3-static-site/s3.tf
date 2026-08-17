@@ -16,11 +16,13 @@ resource "aws_s3_bucket_ownership_controls" "this" {
 }
 
 resource "aws_s3_bucket_versioning" "this" {
-  # count = var.s3_bucket_versioning == "true" ? 1 : 0
-  count  = var.s3_bucket_versioning ? 1 : 0
   bucket = aws_s3_bucket.site_bucket.id
   versioning_configuration {
     status = "Enabled"
+  }
+
+  lifecycle {
+    enabled = var.s3_bucket_versioning
   }
 }
 
