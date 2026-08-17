@@ -50,12 +50,13 @@ module "ec2_with_custom_cloudinit" {
   os_family = "debian" # Can be: debian, ubuntu, freebsd, flatcar
   os_arch   = "amd64"  # Can be: amd64, arm64
 
-  # SSH access
-  allow_ssh_ips = ["0.0.0.0/0"] # CHANGE THIS! Use your actual IP for security
+  # SSH access — REPLACE with your actual IP(s); never use 0.0.0.0/0.
+  # 203.0.113.0/32 below is a documentation-only placeholder (RFC 5737 TEST-NET-3).
+  allow_ssh_ips = ["203.0.113.0/32"]
 
-  # SSH key configuration
-  create_ssh_key = true
-  ssh_key_name   = "custom-cloudinit-example-key"
+  # The module has no built-in SSH key management — either embed a public key
+  # via ssh_authorized_keys/users in cloud-config-custom.yaml, or rely solely
+  # on SSM (enable_ssm below), which needs no key at all.
 
   # AWS SSM (Session Manager) configuration
   enable_ssm = true
@@ -117,12 +118,6 @@ module "ec2_with_custom_cloudinit" {
 output "instance_info" {
   description = "Map of instance information including IDs and IP addresses"
   value       = module.ec2_with_custom_cloudinit.instance_info
-}
-
-output "private_key" {
-  description = "SSH private key for connecting to instances"
-  value       = module.ec2_with_custom_cloudinit.private_key
-  sensitive   = true
 }
 
 output "security_group_id" {
