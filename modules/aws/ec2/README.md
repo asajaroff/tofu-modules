@@ -1,6 +1,8 @@
 # EC2 Module
 
-A flexible Terraform/OpenTofu module for provisioning EC2 instances with customizable configurations including multiple OS options, spot instances, and IAM role integration. The module has no built-in SSH key management — use SSM Session Manager (`enable_ssm`) or embed a public key yourself via `custom_cloud_config`'s `ssh_authorized_keys`/`users`.
+**OpenTofu only as of v2.0.0.** This module uses the `lifecycle { enabled = ... }` meta-argument (`aws_iam_role_policy_attachment.ssm`, the IPv6 security group rules), which was added in OpenTofu 1.11 and has no equivalent in Terraform's grammar at all — it fails to parse there, on any Terraform version. Pin `<= v1.2.4` if you need Terraform compatibility.
+
+A flexible OpenTofu module for provisioning EC2 instances with customizable configurations including multiple OS options, spot instances, and IAM role integration. The module has no built-in SSH key management — use SSM Session Manager (`enable_ssm`) or embed a public key yourself via `custom_cloud_config`'s `ssh_authorized_keys`/`users`.
 
 ## Table of Contents
 
@@ -812,7 +814,7 @@ aws ec2 describe-images --image-ids <ami-id>
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.1 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11.0 |
 | <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 5.0 |
 | <a name="requirement_cloudinit"></a> [cloudinit](#requirement\_cloudinit) | ~> 2.3 |
 
